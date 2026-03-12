@@ -20,7 +20,8 @@ if [ ! -x "$MKLIVE_DIR/mklive.sh" ]; then
 fi
 
 # ---- XBPS'ten kurulacak paketler ----
-# Not: base-system, grub (EFI için), agetty, udevd → mklive.sh zaten ekliyor.
+# Not: base-system, agetty, udevd → mklive.sh zaten ekliyor.
+# grub paketleri live rootfs'a dahil edilmeli — copy_rootfs ile hedefe kopyalanır.
 PKGS=(
     wayfire                     # Wayland compositor
     xorg-server-xwayland        # wayfire.ini: xwayland = true
@@ -46,6 +47,9 @@ PKGS=(
     wl-clipboard                # Wayland pano (wl-copy)
     flatpak                     # Flatpak: sisteme doğrudan dahil
     xmirror                     # Mirror seçimi (pupainstaller menu_mirror)
+    grub                        # BIOS kurulumu için GRUB
+    grub-x86_64-efi             # EFI 64-bit kurulumu için GRUB
+    grub-i386-efi               # EFI 32-bit kurulumu için GRUB
 )
 
 SERVICES="dbus elogind polkitd NetworkManager"
