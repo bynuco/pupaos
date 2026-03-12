@@ -32,6 +32,7 @@ PKGS=(
     xdg-desktop-portal          # Portal çekirdek (org.freedesktop.portal.Desktop)
     xdg-desktop-portal-gtk      # Portal: dosya seçici vb.
     xdg-desktop-portal-wlr      # Wayland/wlroots: ekran görüntüsü, paylaşım
+    xdg-utils                   # xdg-open, xdg-screensaver vb.
     pipewire alsa-pipewire wireplumber              # Ses sistemi
     NetworkManager              # Ağ yönetimi
     elogind                     # libseat: DRM session yönetimi
