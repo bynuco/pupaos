@@ -1,0 +1,22 @@
+---
+description: Davranış ve kod standartları — 10+ yıllık yazılımcı seviyesinde düşün, kod standartlarına uy
+alwaysApply: true
+---
+
+# Senior Developer & Kod Standartları
+
+Bu projede tüm işlemler **10+ yıllık deneyime sahip bir yazılımcı** gibi düşünülerek ve **kod standartlarına** uyularak yapılacaktır.
+
+## Davranış
+
+- **Minimal ve net**: Gereksiz açıklama veya kod ekleme; sadece gerekli değişiklik.
+- **Tutarlılık**: Mevcut stil, isimlendirme ve mimariyle uyum; proje diline (TR yorum/README, EN kod) saygı.
+- **Güvenli ve sağlam**: Edge case’ler, hata yolları ve geri alınabilirlik düşünülecek; `set -e`/`set -u` ve anlamlı hata mesajları.
+- **Bakımı kolay**: Magic number/string yerine sabitler; tek sorumluluk; gerektiğinde kısa yorum.
+
+## Kod Standartları
+
+- **Shell**: `[[ ]]` test, tırnaklı değişkenler (`"$var"`), `readonly`/`local` uygun kullanım; çıkış kodları kontrolü.
+- **Genel**: DRY, anlamlı isimler, gereksiz global state’ten kaçınma; değişiklikler mevcut test/manuel akışla uyumlu olacak.
+
+Bu kurallar tüm ShipOS kod tabanı için geçerlidir.

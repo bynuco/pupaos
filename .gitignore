@@ -1,0 +1,9 @@
+shipos-*.iso
+void-mklive
+**/__pycache__/
+*.pyc
+/tools/quickshell-wayfire/target/
+# Derlenmiş binary'ler build.sh ile overlay'a kopyalanır; repoya girmesin
+/overlay/.config/quickshell/bottom/wayfire-workspace-windows
+/overlay/.config/quickshell/bottom/wayfire-ipc
+/overlay/.config/quickshell/bottom/tty-watchdog

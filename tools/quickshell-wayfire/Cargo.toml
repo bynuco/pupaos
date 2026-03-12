@@ -1,0 +1,24 @@
+[package]
+name = "quickshell-wayfire"
+version = "0.1.0"
+edition = "2021"
+description = "Wayfire IPC helpers for Quickshell bottom panel"
+authors = ["PupaOS"]
+license = "MIT"
+
+[[bin]]
+name = "wayfire-workspace-windows"
+path = "src/bin/wayfire-workspace-windows.rs"
+
+[[bin]]
+name = "wayfire-ipc"
+path = "src/bin/wayfire-ipc.rs"
+
+[[bin]]
+name = "tty-watchdog"
+path = "src/bin/tty-watchdog.rs"
+
+[dependencies]
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
