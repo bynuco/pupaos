@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# PupaOS - Void Linux tabanlı özel canlı ISO oluşturma scripti
-# void-mklive/mklive.sh etrafında ince bir sarmalayıcıdır.
+# PupaOS - Özel canlı ISO oluşturma scripti
+# mklive/mklive.sh etrafında ince bir sarmalayıcıdır.
 # Root yetkisiyle çalıştırılmalıdır (mklive.sh zaten kontrol eder).
 #
 set -eu
@@ -16,7 +16,7 @@ if [ "$(id -u)" -ne 0 ]; then
     echo "Hata: sudo ile çalıştırın: sudo $0" >&2; exit 1
 fi
 if [ ! -x "$MKLIVE_DIR/mklive.sh" ]; then
-    echo "Hata: void-mklive/mklive.sh bulunamadı." >&2; exit 1
+    echo "Hata: mklive/mklive.sh bulunamadı." >&2; exit 1
 fi
 
 # ---- XBPS'ten kurulacak paketler ----
@@ -156,10 +156,10 @@ polkit.addAdminRule(function(action, subject) {
 });
 EOF
 
-# ---- void-mklive override dosyaları ----
-# void-mklive bir upstream submodule'dür; değişiklikler overrides/ altında tutulur
-# ve build sırasında void-mklive içine kopyalanır.
-echo ">> void-mklive overrides uygulanıyor..."
+# ---- mklive override dosyaları ----
+# mklive bir upstream submodule'dür; değişiklikler overrides/ altında tutulur
+# ve build sırasında mklive içine kopyalanır.
+echo ">> mklive overrides uygulanıyor..."
 OVERRIDES_DIR="$SCRIPT_DIR/overrides"
 for f in "dracut/vmklive/adduser.sh" "data/issue"; do
     if [ ! -f "$OVERRIDES_DIR/$f" ]; then

@@ -45,9 +45,9 @@ MIRROR_DONE=
 
 TARGETDIR=/mnt/target
 LOG=/dev/tty8
-CONF_FILE=/tmp/.pupainstaller.conf
-if [ ! -f "$CONF_FILE" ]; then
-    touch "$CONF_FILE"
+CONF_FILE=/tmp/.pupaos-installer.conf
+if [ ! -f $CONF_FILE ]; then
+    touch -f $CONF_FILE
 fi
 ANSWER=$(mktemp -t vinstall-XXXXXXXX || exit 1)
 TARGET_SERVICES=$(mktemp -t vinstall-sv-XXXXXXXX || exit 1)
@@ -95,17 +95,17 @@ YESNOSIZE="$INPUTSIZE"
 WIDGET_SIZE="10 70"
 
 DIALOG() {
-    rm -f "$ANSWER"
+    rm -f $ANSWER
     dialog --colors --keep-tite --no-shadow --no-mouse \
-        --backtitle "${BOLD}${WHITE}PupaOS installation -- https://pupaos.com${RESET}" \
-        --cancel-label "Back" --aspect 20 "$@" 2>"$ANSWER"
+        --backtitle "${BOLD}${WHITE}PupaOS installation -- https://www.pupaos.com (@@MKLIVE_VERSION@@)${RESET}" \
+        --cancel-label "Back" --aspect 20 "$@" 2>$ANSWER
     return $?
 }
 
 INFOBOX() {
     # Note: dialog --infobox and --keep-tite don't work together
     dialog --colors --no-shadow --no-mouse \
-        --backtitle "${BOLD}${WHITE}PupaOS installation -- https://pupaos.com${RESET}" \
+        --backtitle "${BOLD}${WHITE}PupaOS installation -- https://www.pupaos.com (@@MKLIVE_VERSION@@)${RESET}" \
         --title "${TITLE}" --aspect 20 --infobox "$@"
 }
 
@@ -113,7 +113,7 @@ DIE() {
     rval=$1
     [ -z "$rval" ] && rval=0
     clear
-    rm -f "$ANSWER" "$TARGET_FSTAB" "$TARGET_SERVICES"
+    rm -f $ANSWER $TARGET_FSTAB $TARGET_SERVICES
     # reenable printk
     if [ -w /proc/sys/kernel/printk ]; then
         echo 4 >/proc/sys/kernel/printk
@@ -123,14 +123,14 @@ DIE() {
 }
 
 set_option() {
-    if grep -Eq "^${1} .*" "$CONF_FILE"; then
-        sed -i -e "/^${1} .*/d" "$CONF_FILE"
+    if grep -Eq "^${1} .*" $CONF_FILE; then
+        sed -i -e "/^${1} .*/d" $CONF_FILE
     fi
-    echo "${1} ${2}" >> "$CONF_FILE"
+    echo "${1} ${2}" >>$CONF_FILE
 }
 
 get_option() {
-    grep -E "^${1} .*" "$CONF_FILE" | sed -e "s|^${1} ||"
+    grep -E "^${1} .*" $CONF_FILE | sed -e "s|^${1} ||"
 }
 
 # ISO-639 language names for locales
@@ -589,7 +589,7 @@ menu_locale() {
 }
 
 set_locale() {
-    if [ -f "$TARGETDIR/etc/default/libc-locales" ]; then
+    if [ -f $TARGETDIR/etc/default/libc-locales ]; then
         local LOCALE="$(get_option LOCALE)"
         : "${LOCALE:=C.UTF-8}"
         sed -i -e "s|LANG=.*|LANG=$LOCALE|g" $TARGETDIR/etc/locale.conf
@@ -747,7 +747,7 @@ menu_useraccount() {
         fi
     done
 
-    _groups="wheel,audio,video,floppy,cdrom,optical,kvm,input,users,xbuilder"
+    _groups="wheel,audio,video,floppy,cdrom,optical,kvm,users,xbuilder"
     while true; do
         _desc="Select group membership for login '$(get_option USERLOGIN)':"
         for _group in $(cat /etc/group); do
@@ -783,7 +783,7 @@ menu_useraccount() {
 set_useraccount() {
     [ -z "$USERACCOUNT_DONE" ] && return
     chroot $TARGETDIR useradd -m -G "$(get_option USERGROUPS)" \
-        -c "$(get_option USERNAME)" -s /bin/bash "$(get_option USERLOGIN)"
+        -c "$(get_option USERNAME)" "$(get_option USERLOGIN)"
     echo "$(get_option USERLOGIN):$(get_option USERPASSWORD)" | \
         chroot $TARGETDIR chpasswd -c SHA512
 }
@@ -1033,7 +1033,7 @@ validate_filesystems() {
     local bootdev=$(get_option BOOTLOADER)
 
     unset TARGETFS
-    mnts=$(grep -E '^MOUNTPOINT .*' "$CONF_FILE")
+    mnts=$(grep -E '^MOUNTPOINT .*' $CONF_FILE)
     set -- ${mnts}
     while [ $# -ne 0 ]; do
         fmt=""
@@ -1079,7 +1079,7 @@ create_filesystems() {
     # truncate to avoid doubling up
     : >"$TARGET_FSTAB"
 
-    mnts=$(grep -E '^MOUNTPOINT .*' "$CONF_FILE" | sort -k 5)
+    mnts=$(grep -E '^MOUNTPOINT .*' $CONF_FILE | sort -k 5)
     set -- ${mnts}
     while [ $# -ne 0 ]; do
         dev=$2; fstype=$3; mntpt="$5"; mkfs=$6
@@ -1149,7 +1149,7 @@ failed to mount $dev on ${mntpt}! check $LOG for errors." ${MSGBOXSIZE}
     done
 
     # mount all filesystems in target rootfs
-    mnts=$(grep -E '^MOUNTPOINT .*' "$CONF_FILE" | sort -k 5)
+    mnts=$(grep -E '^MOUNTPOINT .*' $CONF_FILE | sort -k 5)
     set -- ${mnts}
     while [ $# -ne 0 ]; do
         dev=$2; fstype=$3; mntpt="$5"
@@ -1176,14 +1176,14 @@ failed to mount $dev on $mntpt! check $LOG for errors." ${MSGBOXSIZE}
 
 mount_filesystems() {
     for f in sys proc dev; do
-        [ ! -d "$TARGETDIR/$f" ] && mkdir "$TARGETDIR/$f"
+        [ ! -d $TARGETDIR/$f ] && mkdir $TARGETDIR/$f
         echo "Mounting $TARGETDIR/$f..." >$LOG
         mount --rbind /$f $TARGETDIR/$f >$LOG 2>&1
     done
 }
 
 umount_filesystems() {
-    local mnts="$(grep -E '^MOUNTPOINT .* swap .*$' "$CONF_FILE" | sort -r -k 5)"
+    local mnts="$(grep -E '^MOUNTPOINT .* swap .*$' $CONF_FILE | sort -r -k 5)"
     set -- ${mnts}
     while [ $# -ne 0 ]; do
         local dev=$2; local fstype=$3
@@ -1447,7 +1447,7 @@ Root partition not empty! Aborting..." ${MSGBOXSIZE}
         elif [ -n "$_dev" -a "$_type" = "static" ]; then
             # static IP through dhcpcd.
             mv $TARGETDIR/etc/dhcpcd.conf $TARGETDIR/etc/dhcpcd.conf.orig
-            echo "# Static IP configuration set by the pupainstaller for $_dev." \
+            echo "# Static IP configuration set by the pupaos-installer for $_dev." \
                 >$TARGETDIR/etc/dhcpcd.conf
             echo "interface $_dev" >>$TARGETDIR/etc/dhcpcd.conf
             echo "static ip_address=$_ip" >>$TARGETDIR/etc/dhcpcd.conf
@@ -1457,7 +1457,7 @@ Root partition not empty! Aborting..." ${MSGBOXSIZE}
         fi
     fi
 
-    if [ -d "$TARGETDIR/etc/sudoers.d" ]; then
+    if [ -d $TARGETDIR/etc/sudoers.d ]; then
         USERLOGIN="$(get_option USERLOGIN)"
         if [ -z "$(echo $(get_option USERGROUPS) | grep -w wheel)" -a -n "$USERLOGIN" ]; then
             # enable sudo for primary user USERLOGIN who is not member of wheel
@@ -1609,7 +1609,7 @@ if ! command -v dialog >/dev/null; then
 fi
 
 if [ "$(id -u)" != "0" ]; then
-   echo "pupainstaller must run as root" 1>&2
+   echo "pupaos-installer must run as root" 1>&2
    exit 1
 fi
 
@@ -1617,11 +1617,12 @@ fi
 # main()
 #
 DIALOG --title "${BOLD}${RED} Welcome to PupaOS ${RESET}" --msgbox "\n
-Welcome to the PupaOS installation. A custom Linux distribution \
-with Wayfire Wayland compositor, built on XBPS package management.\n\n
-The installation should be pretty straightforward. For more information \
-visit us at:\n\n
-${BOLD}https://pupaos.com${RESET}\n\n" 16 80
+Welcome to the PupaOS installation. A simple and minimal \
+Linux distribution made from scratch and built from the source package tree \
+available for XBPS, a new alternative binary package system.\n\n
+The installation should be pretty straightforward. If you are in trouble \
+please join us at ${BOLD}#pupaos${RESET} on ${BOLD}irc.libera.chat${RESET}.\n\n
+${BOLD}https://www.pupaos.com${RESET}\n\n" 16 80
 
 while true; do
     menu
