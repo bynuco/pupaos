@@ -45,7 +45,7 @@ MIRROR_DONE=
 
 TARGETDIR=/mnt/target
 LOG=/dev/tty8
-CONF_FILE=/tmp/.pupaos-installer.conf
+CONF_FILE=/tmp/.pupainstaller.conf
 if [ ! -f "$CONF_FILE" ]; then
     touch "$CONF_FILE"
 fi
@@ -97,7 +97,7 @@ WIDGET_SIZE="10 70"
 DIALOG() {
     rm -f "$ANSWER"
     dialog --colors --keep-tite --no-shadow --no-mouse \
-        --backtitle "${BOLD}${WHITE}PupaOS installation -- https://pupaos.nesimiumutcan.com${RESET}" \
+        --backtitle "${BOLD}${WHITE}PupaOS installation -- https://pupaos.com${RESET}" \
         --cancel-label "Back" --aspect 20 "$@" 2>"$ANSWER"
     return $?
 }
@@ -105,7 +105,7 @@ DIALOG() {
 INFOBOX() {
     # Note: dialog --infobox and --keep-tite don't work together
     dialog --colors --no-shadow --no-mouse \
-        --backtitle "${BOLD}${WHITE}PupaOS installation -- https://pupaos.nesimiumutcan.com${RESET}" \
+        --backtitle "${BOLD}${WHITE}PupaOS installation -- https://pupaos.com${RESET}" \
         --title "${TITLE}" --aspect 20 --infobox "$@"
 }
 
@@ -747,7 +747,7 @@ menu_useraccount() {
         fi
     done
 
-    _groups="wheel,audio,video,floppy,cdrom,optical,kvm,users,xbuilder"
+    _groups="wheel,audio,video,floppy,cdrom,optical,kvm,input,users,xbuilder"
     while true; do
         _desc="Select group membership for login '$(get_option USERLOGIN)':"
         for _group in $(cat /etc/group); do
@@ -783,7 +783,7 @@ menu_useraccount() {
 set_useraccount() {
     [ -z "$USERACCOUNT_DONE" ] && return
     chroot $TARGETDIR useradd -m -G "$(get_option USERGROUPS)" \
-        -c "$(get_option USERNAME)" "$(get_option USERLOGIN)"
+        -c "$(get_option USERNAME)" -s /bin/bash "$(get_option USERLOGIN)"
     echo "$(get_option USERLOGIN):$(get_option USERPASSWORD)" | \
         chroot $TARGETDIR chpasswd -c SHA512
 }
@@ -1371,7 +1371,7 @@ Root partition not empty! Aborting..." ${MSGBOXSIZE}
         . /etc/default/live.conf
         rm -f $TARGETDIR/etc/motd
         rm -f $TARGETDIR/etc/issue
-        rm -f $TARGETDIR/usr/local/bin/pupaos-installer
+        rm -f $TARGETDIR/usr/local/bin/pupainstaller
         # Remove modified sddm.conf to let sddm use the defaults.
         rm -f $TARGETDIR/etc/sddm.conf
         # Remove live user.
@@ -1447,7 +1447,7 @@ Root partition not empty! Aborting..." ${MSGBOXSIZE}
         elif [ -n "$_dev" -a "$_type" = "static" ]; then
             # static IP through dhcpcd.
             mv $TARGETDIR/etc/dhcpcd.conf $TARGETDIR/etc/dhcpcd.conf.orig
-            echo "# Static IP configuration set by the pupaos-installer for $_dev." \
+            echo "# Static IP configuration set by the pupainstaller for $_dev." \
                 >$TARGETDIR/etc/dhcpcd.conf
             echo "interface $_dev" >>$TARGETDIR/etc/dhcpcd.conf
             echo "static ip_address=$_ip" >>$TARGETDIR/etc/dhcpcd.conf
@@ -1609,7 +1609,7 @@ if ! command -v dialog >/dev/null; then
 fi
 
 if [ "$(id -u)" != "0" ]; then
-   echo "pupaos-installer must run as root" 1>&2
+   echo "pupainstaller must run as root" 1>&2
    exit 1
 fi
 
@@ -1621,7 +1621,7 @@ Welcome to the PupaOS installation. A custom Linux distribution \
 with Wayfire Wayland compositor, built on XBPS package management.\n\n
 The installation should be pretty straightforward. For more information \
 visit us at:\n\n
-${BOLD}https://pupaos.nesimiumutcan.com${RESET}\n\n" 16 80
+${BOLD}https://pupaos.com${RESET}\n\n" 16 80
 
 while true; do
     menu

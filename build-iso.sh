@@ -39,11 +39,12 @@ PKGS=(
     rofi                        # Uygulama başlatıcı
     dejavu-fonts-ttf noto-fonts-ttf terminus-font  # Yazı tipleri
     adwaita-icon-theme          # İkon teması (panel/launcher + tar.gz uygulama varsayılanı)
-    dialog                      # pupaos-installer için gerekli
+    dialog                      # pupainstaller için gerekli
     grim                        # Ekran görüntüsü (Wayland)
     slurp                       # Alan seçimi (grim ile kullanılır)
     wl-clipboard                # Wayland pano (wl-copy)
     flatpak                     # Flatpak: sisteme doğrudan dahil
+    xmirror                     # Mirror seçimi (pupainstaller menu_mirror)
 )
 
 SERVICES="dbus elogind polkitd NetworkManager"
@@ -53,7 +54,7 @@ INCLUDEDIR=$(mktemp -d)
 trap 'rm -rf "$INCLUDEDIR"' EXIT INT TERM
 
 # Overlay (wayfire.ini, quickshell QML dosyaları, görseller)
-# /etc/skel/ altına koyuyoruz: useradd -m bunu /home/anon/'a kopyalar.
+# /etc/skel/ altına koyuyoruz: useradd -m bunu /home/pupa/'a kopyalar.
 echo ">> Overlay kopyalanıyor..."
 mkdir -p "$INCLUDEDIR/etc/skel"
 cp -a "$OVERLAY_DIR/." "$INCLUDEDIR/etc/skel/"
@@ -90,11 +91,28 @@ echo ">> Flathub tek seferlik servisi ekleniyor..."
 mkdir -p "$INCLUDEDIR/etc/sv/flathub-once" "$INCLUDEDIR/etc/runit/runsvdir/default"
 install -Dm755 /dev/stdin "$INCLUDEDIR/etc/sv/flathub-once/run" <<'FLATHUB_RUN'
 #!/bin/sh
-if command -v flatpak >/dev/null 2>&1 && ! flatpak remote-list --system 2>/dev/null | grep -q '^flathub'; then
-    sleep 15
-    flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
+# Flathub zaten ekliyse kendini kapat
+if flatpak remote-list --system 2>/dev/null | grep -q '^flathub'; then
+    touch /etc/sv/flathub-once/down
+    rm -f /etc/runit/runsvdir/default/flathub-once
+    exit 0
 fi
-rm -f /etc/runit/runsvdir/default/flathub-once
+# Ağ hazır olana kadar bekle (maks. 60 saniye)
+i=0
+while [ $i -lt 60 ]; do
+    if xbps-uhelper fetch https://repo-default.voidlinux.org/current/otime >/dev/null 2>&1; then
+        rm -f otime
+        break
+    fi
+    rm -f otime
+    sleep 1
+    i=$((i + 1))
+done
+# Flathub'ı ekle; başarılıysa servisi kapat, başarısızsa runit yeniden dener
+if flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null; then
+    touch /etc/sv/flathub-once/down
+    rm -f /etc/runit/runsvdir/default/flathub-once
+fi
 exit 0
 FLATHUB_RUN
 ln -sf ../../sv/flathub-once "$INCLUDEDIR/etc/runit/runsvdir/default/flathub-once"
@@ -116,27 +134,24 @@ PRETTY_NAME="PupaOS"
 ID=pupaos
 ID_LIKE=void
 ANSI_COLOR="0;38;2;23;147;209"
-HOME_URL="https://pupaos.nesimiumutcan.com"
-SUPPORT_URL="https://pupaos.nesimiumutcan.com"
-BUG_REPORT_URL="https://pupaos.nesimiumutcan.com"
+HOME_URL="https://pupaos.com"
+SUPPORT_URL="https://pupaos.com"
+BUG_REPORT_URL="https://pupaos.com"
 EOF
 
-# installer scripti → /usr/local/bin/pupaos-installer (+ void-installer symlink)
-echo ">> pupaos-installer kopyalanıyor..."
-install -Dm755 "$SCRIPT_DIR/installer.sh" "$INCLUDEDIR/usr/local/bin/pupaos-installer"
+# installer scripti → /usr/local/bin/pupainstaller
+echo ">> pupainstaller kopyalanıyor..."
+install -Dm755 "$SCRIPT_DIR/installer.sh" "$INCLUDEDIR/usr/local/bin/pupainstaller"
 
 # Polkit kuralları → wheel grubundaki kullanıcılar oturum geçişi yapabilsin
 # (elogind SwitchTo, TTY değiştirme vb. için gerekli)
 echo ">> Polkit kuralları yazılıyor..."
 install -Dm644 /dev/stdin "$INCLUDEDIR/etc/polkit-1/rules.d/50-pupaos.rules" <<'EOF'
+// wheel grubundaki kullanıcılar polkit yöneticisi sayılır (şifre sorarsa wheel'den sorar).
+// Canlı sistemde pupaos-live.rules tüm eylemlere şifresiz YES verir;
+// kurulum sonrası o dosya silinir ve buradaki addAdminRule geçerli olur.
 polkit.addAdminRule(function(action, subject) {
     return ["unix-group:wheel"];
-});
-
-polkit.addRule(function(action, subject) {
-    if (subject.isInGroup("wheel")) {
-        return polkit.Result.YES;
-    }
 });
 EOF
 

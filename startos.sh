@@ -48,7 +48,10 @@ pkill -f "quickshell" 2>/dev/null || true
 pkill -x "tty-watchdog" 2>/dev/null || true
 sleep 0.5
 
-# 7. Loglama
-# Not: exec kullanımı bu scripti Wayfire süreciyle yer değiştirir.
-# HOME yoksa (nadir) /tmp kullan
-exec dbus-run-session wayfire > "${HOME:-/tmp}/wayfire.log" 2>&1
+# Eğer halihazırda bir DBUS oturumu yoksa çalıştır, varsa doğrudan wayfire'ı çalıştır
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+    exec dbus-run-session wayfire 
+else
+    exec wayfire 
+fi
+

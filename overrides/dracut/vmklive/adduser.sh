@@ -11,7 +11,7 @@ echo pupaos-live > "${NEWROOT}/etc/hostname"
 USERNAME=$(getarg live.user)
 USERSHELL=$(getarg live.shell)
 
-[ -z "$USERNAME" ] && USERNAME=anon
+[ -z "$USERNAME" ] && USERNAME=pupa
 [ -x "$NEWROOT/bin/bash" -a -z "$USERSHELL" ] && USERSHELL=/bin/bash
 [ -z "$USERSHELL" ] && USERSHELL=/bin/sh
 
@@ -24,7 +24,7 @@ if ! grep -q "$USERSHELL" "${NEWROOT}/etc/shells" ; then
 fi
 
 # Create new user and remove password. We'll use autologin by default.
-chroot "${NEWROOT}" useradd -m -c "$USERNAME" -G audio,video,wheel -s "$USERSHELL" "$USERNAME"
+chroot "${NEWROOT}" useradd -m -c "$USERNAME" -G audio,video,wheel,input -s "$USERSHELL" "$USERNAME"
 chroot "${NEWROOT}" passwd -d "$USERNAME" >/dev/null 2>&1
 
 # Setup default root/user password (pupaos).
