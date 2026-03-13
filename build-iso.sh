@@ -50,6 +50,8 @@ PKGS=(
     grub                        # BIOS kurulumu için GRUB
     grub-x86_64-efi             # EFI 64-bit kurulumu için GRUB
     grub-i386-efi               # EFI 32-bit kurulumu için GRUB
+    ffmpeg                      # Video codec desteği (H.264, VP9, AAC vb.)
+    mpv                         # Video oynatıcı (Wayland uyumlu)
 )
 
 SERVICES="dbus elogind polkitd NetworkManager"
