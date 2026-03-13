@@ -20,7 +20,12 @@
       "WebFetch(domain:wiki.voidlinux.org)",
       "WebFetch(domain:forums.freebsd.org)",
       "Bash(find /home/pupa/pupaos -type f \\\\\\(-name Makefile -o -name *.toml -o -name *.lock \\\\\\))",
-      "Bash(find /home/pupa/pupaos -type f -not -path */target/* -not -path */.git/* -not -path */.*)"
+      "Bash(find /home/pupa/pupaos -type f -not -path */target/* -not -path */.git/* -not -path */.*)",
+      "Bash(find /home/pupa/pupaos -type f -name *.sh)",
+      "Bash(grep -r vlc /home/pupa/pupaos --include=*.sh --include=*.md)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "WebFetch(domain:dl.flathub.org)"
     ]
   }
 }

@@ -105,36 +105,13 @@ ln -sf /usr/share/alsa/alsa.conf.d/50-pipewire.conf \
 ln -sf /usr/share/alsa/alsa.conf.d/99-pipewire-default.conf \
     "$INCLUDEDIR/etc/alsa/conf.d/"
 
-# Flathub: ilk açılışta sistem genelinde eklenir, servis bir kez çalışıp kendini kapatır
-echo ">> Flathub tek seferlik servisi ekleniyor..."
-mkdir -p "$INCLUDEDIR/etc/sv/flathub-once" "$INCLUDEDIR/etc/runit/runsvdir/default"
-install -Dm755 /dev/stdin "$INCLUDEDIR/etc/sv/flathub-once/run" <<'FLATHUB_RUN'
-#!/bin/sh
-# Flathub zaten ekliyse kendini kapat
-if flatpak remote-list --system 2>/dev/null | grep -q '^flathub'; then
-    touch /etc/sv/flathub-once/down
-    rm -f /etc/runit/runsvdir/default/flathub-once
-    exit 0
-fi
-# Ağ hazır olana kadar bekle (maks. 60 saniye)
-i=0
-while [ $i -lt 60 ]; do
-    if xbps-uhelper fetch https://repo-default.voidlinux.org/current/otime >/dev/null 2>&1; then
-        rm -f otime
-        break
-    fi
-    rm -f otime
-    sleep 1
-    i=$((i + 1))
-done
-# Flathub'ı ekle; başarılıysa servisi kapat, başarısızsa runit yeniden dener
-if flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null; then
-    touch /etc/sv/flathub-once/down
-    rm -f /etc/runit/runsvdir/default/flathub-once
-fi
-exit 0
-FLATHUB_RUN
-ln -sf ../../sv/flathub-once "$INCLUDEDIR/etc/runit/runsvdir/default/flathub-once"
+# Flathub: /etc/flatpak/remotes.d/ altındaki .flatpakrepo dosyaları flatpak tarafından
+# otomatik olarak sistem remote'u olarak tanınır — servis veya ağ gerekmez.
+echo ">> Flathub remote yapılandırılıyor..."
+mkdir -p "$INCLUDEDIR/etc/flatpak/remotes.d"
+curl -fsSL https://dl.flathub.org/repo/flathub.flatpakrepo \
+    -o "$INCLUDEDIR/etc/flatpak/remotes.d/flathub.flatpakrepo"
+chmod 644 "$INCLUDEDIR/etc/flatpak/remotes.d/flathub.flatpakrepo"
 
 # Login sonrası wayfire otomatik başlatma (startos.sh kullanarak)
 echo ">> Wayfire otomatik başlatma yapılandırılıyor..."
