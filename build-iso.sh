@@ -30,11 +30,12 @@ PKGS=(
     quickshell                  # panel/shell
     qt6-plugin-tls-openssl      # Quickshell launcher HTTPS/TLS (qt.network.ssl)
     mesa mesa-dri mesa-vaapi mesa-vulkan-nouveau mesa-vulkan-radeon  # GPU sürücüleri
+    libva libva-utils           # VA-API runtime (donanım video decode)
+    zramen                      # zram swap (tarayıcı OOM dondurmasını önler)
     xdg-desktop-portal          # Portal çekirdek (org.freedesktop.portal.Desktop)
     xdg-desktop-portal-gtk      # Portal: dosya seçici vb.
     xdg-desktop-portal-wlr      # Wayland/wlroots: ekran görüntüsü, paylaşım
     xdg-utils                   # xdg-open, xdg-screensaver vb.
-    pipewire alsa-pipewire wireplumber              # Ses sistemi
     NetworkManager              # Ağ yönetimi
     elogind                     # libseat: DRM session yönetimi
     polkit dbus                 # Sistem servisleri
@@ -50,11 +51,20 @@ PKGS=(
     grub                        # BIOS kurulumu için GRUB
     grub-x86_64-efi             # EFI 64-bit kurulumu için GRUB
     grub-i386-efi               # EFI 32-bit kurulumu için GRUB
+    pipewire alsa-pipewire wireplumber wireplumber-elogind  # Ses sistemi
     ffmpeg                      # Video codec desteği (H.264, VP9, AAC vb.)
-    mpv                         # Video oynatıcı (Wayland uyumlu)
+    libdav1d                    # Hızlı AV1 codec (modern web videoları)
+    gstreamer1-pipewire         # GStreamer → PipeWire köprüsü (uygulama sesi için)
+    rtkit                       # PipeWire gerçek zamanlı öncelik (ses kopması önler)
+    gstreamer1                  # GStreamer çerçevesi (GTK/Electron uygulamaları)
+    gst-plugins-base1           # Temel codec'ler: ogg, vorbis, theora
+    gst-plugins-good1           # VP8/VP9, MP4/AAC, FLAC, WAV, PipeWire sink
+    gst-plugins-bad1            # AV1, Opus, HLS, DASH, VA-API donanım decode
+    gst-plugins-ugly1           # MP3, x264 (patent kısıtlı eklentiler)
+    gst-libav                   # FFmpeg tabanlı GStreamer (H.264, H.265, AAC)
 )
 
-SERVICES="dbus elogind polkitd NetworkManager"
+SERVICES="dbus elogind polkitd NetworkManager rtkit"
 
 # ---- Include dizini hazırla ----
 INCLUDEDIR=$(mktemp -d)
