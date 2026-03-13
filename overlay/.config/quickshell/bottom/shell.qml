@@ -131,11 +131,79 @@ Scope {
 
         ListModel { id: tasksModel }
 
+        // Desktop entry lookup tablosu: launcher gibi tüm kayıtları indeksler.
+        // heuristicLookup bazen appId'yi eşleştiremez (case, Flatpak, WM class farkları);
+        // bu map fallback olarak kullanılır.
+        property var _entryById: ({})
+
+        function _rebuildEntryMap() {
+            const m = {}
+            for (let i = 0; i < entryBridge.count; i++) {
+                const e = entryBridge.itemAt(i)?.modelData
+                if (!e) continue
+                const id = e.id || ""
+                if (id) {
+                    m[id.toLowerCase()] = e
+                    const parts = id.split(".")
+                    if (parts.length > 1) {
+                        const last = parts[parts.length - 1].toLowerCase()
+                        if (!m[last]) m[last] = e
+                        const noHyphen = last.replace(/-/g, "").replace(/_/g, "").replace(/\s/g, "")
+                        if (noHyphen && !m[noHyphen]) m[noHyphen] = e
+                    }
+                }
+                if (e.wmClass) m[e.wmClass.toLowerCase()] = e
+            }
+            root._entryById = m
+        }
+
+        function lookupEntry(appId) {
+            if (!appId) return null
+            const entry = DesktopEntries.heuristicLookup(appId)
+            if (entry) return entry
+            const lower = appId.toLowerCase()
+            const lastPart = lower.split(".").pop()
+            const normalized = lastPart.replace(/-/g, "").replace(/_/g, "").replace(/\s/g, "")
+            return root._entryById[lower]
+                || root._entryById[lastPart]
+                || (normalized !== lastPart ? root._entryById[normalized] : null)
+                || root._entryById[lower.replace(/\s/g, "")]
+                || null
+        }
+
+        // Ana süreçte XDG_DATA_DIRS Flatpak yollarını içermeyebilir; iconPath boş döner.
+        // Launcher ile aynı davranış için mutlak yol döndür (file:// yok — Qt Image bazen file:// ile mor kare veriyor).
+        function flatpakIconPath(iconName) {
+            if (!iconName || iconName.indexOf(".") < 0) return ""
+            const home = Quickshell.env("HOME") || ""
+            if (!home || !home.startsWith("/")) return ""
+            const path = home + "/.local/share/flatpak/exports/share/icons/hicolor/scalable/apps/" + iconName + ".svg"
+            return path
+        }
+        function flatpakIconPath48(iconName) {
+            if (!iconName || iconName.indexOf(".") < 0) return ""
+            const home = Quickshell.env("HOME") || ""
+            if (!home || !home.startsWith("/")) return ""
+            return home + "/.local/share/flatpak/exports/share/icons/hicolor/48x48/apps/" + iconName + ".png"
+        }
+
         // ToplevelManager exposes a read-only C++ model. We observe it via a hidden
         // Repeater and reconcile our reorderable ListModel on every change.
         // Workspace değişiminde toplevel.screens güncellenir; bu tetiklenmeyebilir, Timer ile yenilenir.
         Item {
             visible: false
+
+            // Desktop entry index (launcher'daki gibi tüm kayıtları izler)
+            Repeater {
+                id: entryBridge
+                model: DesktopEntries.applications
+                delegate: Item {
+                    required property var modelData
+                    visible: false; width: 0; height: 0
+                }
+                onCountChanged: Qt.callLater(root._rebuildEntryMap)
+            }
+
             Repeater {
                 id: bridge
                 model: ToplevelManager.toplevels
@@ -554,7 +622,10 @@ Scope {
             }
         }
 
-        // Task button with drag-to-reorder and right-click context menu
+        // Task button: Launcher'dan fark — launcher model=DesktopEntries.applications (doğrudan entry),
+        // bottom model=ToplevelManager.toplevels (pencere); entry lookupEntry(toplevel.appId) ile bulunur.
+        // Başlık: entry varsa entry.name (yerelleştirilmiş, örn. "Görev Yöneticisi"), yoksa toplevel.title (pencere başlığı).
+        // İkon: aynı entry.icon + Quickshell.iconPath; ana süreçte XDG_DATA_DIRS wayfire autostart'ta export edilmeli (wayfire.ini).
         component TaskButton: Rectangle {
             id: taskBtn
 
@@ -602,18 +673,16 @@ Scope {
                     Layout.preferredHeight: root.taskIconSize
 
                     readonly property var entry: taskBtn.toplevel
-                        ? DesktopEntries.heuristicLookup(taskBtn.toplevel.appId) : null
+                        ? root.lookupEntry(taskBtn.toplevel.appId) : null
                     readonly property string iconName: entry?.icon || taskBtn.toplevel?.appId || ""
                     readonly property string _fallback: Quickshell.iconPath("application-x-executable") || ""
                     readonly property string _localFallback: Qt.resolvedUrl("application.svg")
-                    // Desktop kaydı yoksa (doğrudan çalıştırılan exe) ikon isteme → mor-siyah placeholder yerine baş harf
-                    readonly property string iconSource: {
-                        if (!entry) return ""
-                        if (!iconName) return _fallback || _localFallback
-                        if (iconName.startsWith("/")) return iconName
-                        const path = Quickshell.iconPath(iconName)
-                        return path || _fallback || _localFallback
-                    }
+                    // Launcher AppCell ile birebir: source = Quickshell.iconPath(entry.icon). Path'i olduğu gibi kullan (file:// ekleme); flatpakIconPath zaten file:// döndürüyor.
+                    readonly property string _themePath: (entry && iconName)
+                        ? (iconName.startsWith("/") ? iconName : (Quickshell.iconPath(iconName) || (iconName.indexOf(".") >= 0 ? root.flatpakIconPath(iconName) : "")))
+                        : (taskBtn.toplevel?.appId ? (Quickshell.iconPath(taskBtn.toplevel.appId) || (String(taskBtn.toplevel.appId).indexOf(".") >= 0 ? root.flatpakIconPath(taskBtn.toplevel.appId) : "")) : "")
+                    readonly property string iconSource: _themePath || _fallback || _localFallback
+                    readonly property string _flatpakPngFallback: (entry && iconName && iconName.indexOf(".") >= 0) ? root.flatpakIconPath48(iconName) : ""
                     // appId sabit (sayfa başlığı değişse de harf değişmez)
                     readonly property string initial: {
                         const raw = taskBtn.toplevel?.appId ?? taskBtn.toplevel?.title ?? ""
@@ -623,11 +692,20 @@ Scope {
                     Image {
                         id: taskIconImg
                         anchors.fill: parent
-                        source: parent.iconSource
+                        source: parent.iconSource !== "" ? parent.iconSource : ""
                         fillMode: Image.PreserveAspectFit
                         sourceSize: Qt.size(32, 32)
                         smooth: true
-                        visible: status === Image.Ready
+                        visible: parent.iconSource !== "" && status === Image.Ready
+                    }
+                    Image {
+                        id: taskIconImgPng
+                        anchors.fill: parent
+                        source: parent._flatpakPngFallback
+                        fillMode: Image.PreserveAspectFit
+                        sourceSize: Qt.size(32, 32)
+                        smooth: true
+                        visible: source !== "" && status === Image.Ready && !taskIconImg.visible
                     }
 
                     Rectangle {
@@ -636,7 +714,7 @@ Scope {
                         color: taskBtn.toplevel?.activated ? root.clrBtnActive : root.clrBtnDefault
                         border.width: 1
                         border.color: root.clrDivider
-                        visible: !taskIconImg.visible
+                        visible: !taskIconImg.visible && !taskIconImgPng.visible
 
                         Text {
                             anchors.centerIn: parent
@@ -650,7 +728,7 @@ Scope {
 
                 Text {
                     Layout.fillWidth: true
-                    text: taskBtn.toplevel?.title ?? ""
+                    text: root.lookupEntry(taskBtn.toplevel?.appId)?.name ?? taskBtn.toplevel?.title ?? ""
                     color: taskBtn.toplevel?.activated ? root.clrTextFull : root.clrTextDim
                     font.pixelSize: 12
                     elide: Text.ElideRight

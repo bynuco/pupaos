@@ -113,6 +113,30 @@ curl -fsSL https://dl.flathub.org/repo/flathub.flatpakrepo \
     -o "$INCLUDEDIR/etc/flatpak/remotes.d/flathub.flatpakrepo"
 chmod 644 "$INCLUDEDIR/etc/flatpak/remotes.d/flathub.flatpakrepo"
 
+# Flatpak uygulamaları: ilk boot'ta arka planda kurulur, servis kendini kapatır
+echo ">> Flatpak ilk-kurulum servisi ekleniyor..."
+FLATPAK_APPS="io.missioncenter.MissionCenter"
+mkdir -p "$INCLUDEDIR/etc/sv/flatpak-setup"
+install -Dm755 /dev/stdin "$INCLUDEDIR/etc/sv/flatpak-setup/run" <<FLATPAK_RUN
+#!/bin/sh
+# Ağ hazır olana kadar bekle (maks. 120 saniye)
+i=0
+while [ \$i -lt 120 ]; do
+    if curl -sf --max-time 3 https://dl.flathub.org >/dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+    i=\$((i + 1))
+done
+# Uygulamaları kur
+flatpak install --system --noninteractive flathub $FLATPAK_APPS >/dev/null 2>&1
+# Servis kendini kapat
+touch /etc/sv/flatpak-setup/down
+rm -f /etc/runit/runsvdir/default/flatpak-setup
+exit 0
+FLATPAK_RUN
+ln -sf ../../sv/flatpak-setup "$INCLUDEDIR/etc/runit/runsvdir/default/flatpak-setup"
+
 # Login sonrası wayfire otomatik başlatma (startos.sh kullanarak)
 echo ">> Wayfire otomatik başlatma yapılandırılıyor..."
 install -Dm755 "$SCRIPT_DIR/startos.sh" "$INCLUDEDIR/usr/local/bin/pupaos-session"

@@ -25,7 +25,8 @@
       "Bash(grep -r vlc /home/pupa/pupaos --include=*.sh --include=*.md)",
       "Bash(git log:*)",
       "Bash(git show:*)",
-      "WebFetch(domain:dl.flathub.org)"
+      "WebFetch(domain:dl.flathub.org)",
+      "Bash(xbps-query -Rs qt6-svg)"
     ]
   }
 }
