@@ -64,7 +64,7 @@ PKGS=(
     gst-libav                   # FFmpeg tabanlı GStreamer (H.264, H.265, AAC)
 )
 
-SERVICES="dbus elogind polkitd NetworkManager rtkit"
+SERVICES="dbus elogind polkitd NetworkManager rtkit zramen"
 
 # ---- Include dizini hazırla ----
 INCLUDEDIR=$(mktemp -d)
