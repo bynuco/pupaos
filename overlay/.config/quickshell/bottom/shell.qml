@@ -675,18 +675,23 @@ Scope {
                     readonly property var entry: taskBtn.toplevel
                         ? root.lookupEntry(taskBtn.toplevel.appId) : null
                     readonly property string iconName: entry?.icon || taskBtn.toplevel?.appId || ""
-                    readonly property string _fallback: Quickshell.iconPath("application-x-executable") || ""
-                    readonly property string _localFallback: Qt.resolvedUrl("application.svg")
-                    // Launcher AppCell ile birebir: source = Quickshell.iconPath(entry.icon). Path'i olduğu gibi kullan (file:// ekleme); flatpakIconPath zaten file:// döndürüyor.
-                    readonly property string _themePath: (entry && iconName)
+                    // Generic MIME ikonlarını (ör. application-x-executable) \"gerçek ikon\" sayma; bunlar için harf fallback'i kullan.
+                    readonly property bool _hasRealIcon: entry && iconName && iconName !== "application-x-executable"
+                    // Launcher AppCell ile birebir: source = Quickshell.iconPath(entry.icon). Path'i olduğu gibi kullan (file:// ekleme);
+                    // bottom bar'da sadece gerçek .desktop kaydı olan uygulamaların ikonunu göster, diğer her şeyde harf fallback'i kullan.
+                    readonly property string _themePath: (_hasRealIcon)
                         ? (iconName.startsWith("/") ? iconName : (Quickshell.iconPath(iconName) || (iconName.indexOf(".") >= 0 ? root.flatpakIconPath(iconName) : "")))
-                        : (taskBtn.toplevel?.appId ? (Quickshell.iconPath(taskBtn.toplevel.appId) || (String(taskBtn.toplevel.appId).indexOf(".") >= 0 ? root.flatpakIconPath(taskBtn.toplevel.appId) : "")) : "")
-                    readonly property string iconSource: _themePath || _fallback || _localFallback
+                        : ""
+                    readonly property string iconSource: _themePath
                     readonly property string _flatpakPngFallback: (entry && iconName && iconName.indexOf(".") >= 0) ? root.flatpakIconPath48(iconName) : ""
-                    // appId sabit (sayfa başlığı değişse de harf değişmez)
-                    readonly property string initial: {
-                        const raw = taskBtn.toplevel?.appId ?? taskBtn.toplevel?.title ?? ""
-                        return raw.length ? raw.charAt(0).toUpperCase() : "?"
+                    // appId sabit (sayfa başlığı değişse de harf değişmez); ikon yoksa ilk iki harf gösterilir.
+                    readonly property string initials: {
+                        const raw = (taskBtn.toplevel?.appId ?? taskBtn.toplevel?.title ?? "").trim()
+                        if (!raw.length) {
+                            return "?"
+                        }
+                        const slice = raw.length >= 2 ? raw.slice(0, 2) : raw
+                        return slice.toUpperCase()
                     }
 
                     Image {
@@ -718,9 +723,9 @@ Scope {
 
                         Text {
                             anchors.centerIn: parent
-                            text: parent.parent.initial
+                            text: parent.parent.initials
                             color: root.clrTextFull
-                            font.pixelSize: Math.max(10, root.taskIconSize - 6)
+                            font.pixelSize: Math.max(8, root.taskIconSize - 8)
                             font.bold: true
                         }
                     }
