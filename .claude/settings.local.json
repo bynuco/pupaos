@@ -18,7 +18,9 @@
       "WebFetch(domain:kextcache.com)",
       "WebFetch(domain:wiki.hyprland.org)",
       "WebFetch(domain:wiki.voidlinux.org)",
-      "WebFetch(domain:forums.freebsd.org)"
+      "WebFetch(domain:forums.freebsd.org)",
+      "Bash(find /home/pupa/pupaos -type f \\\\\\(-name Makefile -o -name *.toml -o -name *.lock \\\\\\))",
+      "Bash(find /home/pupa/pupaos -type f -not -path */target/* -not -path */.git/* -not -path */.*)"
     ]
   }
 }

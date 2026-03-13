@@ -20,19 +20,22 @@ is_vm() {
 }
 
 if is_vm; then
-    # Sanal makinede GPU hızlandırma (GLES2) genellikle çökmelere/görünmezliğe neden olur.
-    # Pixman (yazılımsal renderer) VM'lerde en güvenli limandır.
+    # Sanal makinede donanım hızlandırma çökmelere neden olabilir; yazılımsal renderer kullan.
     export WLR_RENDERER=pixman
-    # VM'lerde donanım imleci sorunlarını (imleç kaybolması/bozulması) önlemek için:
     export WLR_NO_HARDWARE_CURSORS=1
-elif lspci 2>/dev/null | grep -qi "NVIDIA"; then
-    # NVIDIA: wlroots GBM backend + donanım imleç sorunu + VA-API
+elif lsmod 2>/dev/null | grep -q "^nvidia "; then
+    # NVIDIA proprietary: Wayland için standart dışı ayarlar gerektirir.
+    # nvidia-drm kernel modülü GBM backend sağlar; nvidia-vaapi-driver VA-API'yi üstlenir.
+    # Sürücü 555+ ile wlroots explicit sync desteklenir; __GL_SYNC_TO_VBLANK tearing önler.
     export GBM_BACKEND=nvidia-drm
     export __GLX_VENDOR_LIBRARY_NAME=nvidia
     export WLR_NO_HARDWARE_CURSORS=1
     export LIBVA_DRIVER_NAME=nvidia
     export NVD_BACKEND=direct
+    export __GL_SYNC_TO_VBLANK=0
 fi
+# AMD (amdgpu) ve Intel (i915/xe): mesa-vaapi / intel-media-driver standart DRM
+# arayüzü üzerinden GPU'yu otomatik tanır; ek ortam değişkeni gerekmez.
 
 # 4. Uygulama Standartları (launcher ve DesktopEntries Flatpak .desktop'ları görsün)
 export XDG_DATA_DIRS="${XDG_DATA_DIRS:-/usr/local/share:/usr/share}:/var/lib/flatpak/exports/share:${HOME}/.local/share/flatpak/exports/share"

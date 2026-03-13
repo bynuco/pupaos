@@ -30,6 +30,8 @@ PKGS=(
     quickshell                  # panel/shell
     qt6-plugin-tls-openssl      # Quickshell launcher HTTPS/TLS (qt.network.ssl)
     mesa mesa-dri mesa-vaapi mesa-vulkan-nouveau mesa-vulkan-radeon  # GPU sürücüleri
+    intel-media-driver          # Intel entegre GPU VA-API (iHD) — Broadwell+ donanım decode
+    nvidia-vaapi-driver         # NVIDIA NVDEC → VA-API köprüsü (LIBVA_DRIVER_NAME=nvidia için şart)
     libva libva-utils           # VA-API runtime (donanım video decode)
     zramen                      # zram swap (tarayıcı OOM dondurmasını önler)
     xdg-desktop-portal          # Portal çekirdek (org.freedesktop.portal.Desktop)

@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import QtCore
 import QtQuick.Effects
 
-
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -19,77 +18,101 @@ PanelWindow {
     WlrLayershell.namespace: "shipos-launcher"
 
     // ─── Tasarım sabitleri ────────────────────────────────────────────────────
-    readonly property int _sideWidth: 260
-    readonly property int _margin: 20
+    readonly property int _sideWidth:  260
+    readonly property int _margin:     20
     readonly property int _cardRadius: 16
-    readonly property int _iconSize: 48
-    
-    readonly property color _clrGlassBg:      Qt.rgba(1, 1, 1, 0.12)
-    readonly property color _clrGlassBorder:  Qt.rgba(1, 1, 1, 0.20)
-    readonly property color _clrCardBg:       Qt.rgba(1, 1, 1, 0.08)
-    readonly property color _clrText:         "#ffffff"
-    readonly property color _clrTextDim:      Qt.rgba(1, 1, 1, 0.70)
-    readonly property color _clrAccent:       "#4AC0FF"
-    readonly property color _clrHover:        Qt.rgba(1, 1, 1, 0.15)
-    
-    // ─── Kullanıcı Bilgileri ──────────────────────────────────────────────────
-    property string _userName: Quickshell.env("USER") || ""
+    readonly property int _iconSize:   48
+
+    readonly property color _clrGlassBg:     Qt.rgba(1, 1, 1, 0.12)
+    readonly property color _clrGlassBorder: Qt.rgba(1, 1, 1, 0.20)
+    readonly property color _clrText:        "#ffffff"
+    readonly property color _clrTextDim:     Qt.rgba(1, 1, 1, 0.70)
+    readonly property color _clrAccent:      "#4AC0FF"
+    readonly property color _clrHover:       Qt.rgba(1, 1, 1, 0.15)
+
+    // ─── Kullanıcı bilgileri ──────────────────────────────────────────────────
+    readonly property string _userName: Quickshell.env("USER") || ""
     property string _userFullName: ""
 
+    // FIX: Kullanıcı adı shell string'e gömülmüyor — positional arg olarak geçiliyor
     Process {
         id: userFullNameProc
-        command: ["sh", "-c", "getent passwd " + (_userName || "$USER") + " | cut -d ':' -f 5 | cut -d ',' -f 1"]
-        running: true
-        stdout: StdioCollector {
-            onDataChanged: {
-                var d = String(data).trim()
-                if (d !== "") _userFullName = d
+        command: ["sh", "-c",
+            "getent passwd \"$1\" | cut -d: -f5 | cut -d, -f1",
+            "--", root._userName]
+        running: root._userName !== ""
+        stdout: StdioCollector { id: _userNameOut }
+        // FIX: onDataChanged yerine onExited — output tamamlandığında okunuyor
+        onExited: (code) => {
+            if (code === 0) {
+                var name = _userNameOut.text.trim()
+                if (name !== "") root._userFullName = name
             }
         }
     }
 
-    // ─── Arama metni ──────────────────────────────────────────────────────────
+    // ─── Durum ────────────────────────────────────────────────────────────────
     property string searchText: ""
     property bool _powerMenuOpen: false
+    property bool _shown: false
+
+    // FIX: Her delegate'te tekrar hesaplanmak yerine bir kez cache'leniyor
+    readonly property string _searchLower: searchText.toLowerCase().trim()
 
     // ─── Güç aksiyonları ──────────────────────────────────────────────────────
-
     ListModel {
         id: pwrModel
         Component.onCompleted: {
-            append({ key: "reboot",   label: "Yeniden Başlat", icon: "system-reboot",   accent: "#FFB347" })
-            append({ key: "suspend",  label: "Uyku",           icon: "system-suspend",  accent: "#7EC8FF" })
-            append({ key: "poweroff", label: "Kapat",          icon: "system-shutdown", accent: "#FF6B6B" })
-            append({ key: "logout",   label: "Oturumu Kapat",  icon: "system-log-out",  accent: "#A8FFB0" })
+            append({ key: "reboot",   label: "Yeniden Başlat", icon: "reboot",   accent: "#FFB347" })
+            append({ key: "suspend",  label: "Uyku",           icon: "suspend",  accent: "#7EC8FF" })
+            append({ key: "poweroff", label: "Kapat",          icon: "power",    accent: "#FF6B6B" })
+            append({ key: "logout",   label: "Oturumu Kapat",  icon: "logout",   accent: "#A8FFB0" })
         }
     }
 
-    // Void Linux — runit + elogind, login1 D-Bus kullan
+    // Void Linux — runit + elogind, login1 D-Bus
     function _runPower(key) {
         if (!key) return
         var cmd = []
-        if (key === "reboot") {
-            cmd = ["/usr/bin/dbus-send", "--system", "--print-reply",
-                "--dest=org.freedesktop.login1", "/org/freedesktop/login1",
-                "org.freedesktop.login1.Manager.Reboot", "boolean:true"]
-        } else if (key === "suspend") {
-            cmd = ["/usr/bin/dbus-send", "--system", "--print-reply",
-                "--dest=org.freedesktop.login1", "/org/freedesktop/login1",
-                "org.freedesktop.login1.Manager.Suspend", "boolean:true"]
-        } else if (key === "poweroff") {
-            cmd = ["/usr/bin/dbus-send", "--system", "--print-reply",
-                "--dest=org.freedesktop.login1", "/org/freedesktop/login1",
-                "org.freedesktop.login1.Manager.PowerOff", "boolean:true"]
-        } else if (key === "logout") {
-            cmd = ["sh", "-c", "/usr/bin/loginctl terminate-user $(id -un)"]
+        switch (key) {
+            case "reboot":
+                cmd = ["/usr/bin/dbus-send", "--system", "--print-reply",
+                       "--dest=org.freedesktop.login1", "/org/freedesktop/login1",
+                       "org.freedesktop.login1.Manager.Reboot", "boolean:true"]
+                break
+            case "suspend":
+                cmd = ["/usr/bin/dbus-send", "--system", "--print-reply",
+                       "--dest=org.freedesktop.login1", "/org/freedesktop/login1",
+                       "org.freedesktop.login1.Manager.Suspend", "boolean:true"]
+                break
+            case "poweroff":
+                cmd = ["/usr/bin/dbus-send", "--system", "--print-reply",
+                       "--dest=org.freedesktop.login1", "/org/freedesktop/login1",
+                       "org.freedesktop.login1.Manager.PowerOff", "boolean:true"]
+                break
+            case "logout":
+                // FIX: shell interpolation yok — username doğrudan argüman olarak geçiliyor
+                cmd = ["/usr/bin/loginctl", "terminate-user", root._userName]
+                break
         }
-        if (cmd.length > 0) { Quickshell.execDetached(cmd); Qt.quit() }
+        if (cmd.length > 0) {
+            Quickshell.execDetached(cmd)
+            _close()
+        }
     }
 
-    property string _wallpaper: StandardPaths.writableLocation(StandardPaths.HomeLocation)
+    // FIX: Qt.quit() çağrıları merkezi bir fonksiyonda toplandı
+    function _close() { Qt.quit() }
+
+    readonly property string _wallpaper: StandardPaths.writableLocation(StandardPaths.HomeLocation)
         + "/Wallpapers/ship_bg.jpg"
 
-    Shortcut { sequence: "Escape"; onActivated: Qt.quit() }
+    Shortcut { sequence: "Escape"; onActivated: _close() }
+
+    Component.onCompleted: {
+        _shown = true
+        searchInput.forceActiveFocus()
+    }
 
     // ─── Arka plan: blur ──────────────────────────────────────────────────────
     Image {
@@ -117,30 +140,24 @@ PanelWindow {
         color: Qt.rgba(0, 0, 0, 0.25)
     }
 
-    // Açılış Animasyonu
-    property bool _shown: false
-    Component.onCompleted: {
-        _shown = true
-        searchInput.forceActiveFocus()
-    }
-    
-    // ─── Büyük Saat ──────────────────────────────────────────────────────────
+    // ─── Büyük saat ───────────────────────────────────────────────────────────
     Text {
         id: bigClock
         anchors { left: parent.left; top: parent.top; leftMargin: _margin; topMargin: _margin }
-        text: Qt.formatTime(new Date(), "HH:mm")
         font { pixelSize: 120; weight: Font.Bold; letterSpacing: -4 }
         color: _clrText
         opacity: _shown ? 0.9 : 0
-        scale: _shown ? 1.0 : 0.8
-        
-        Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 600; easing.type: Easing.OutBack } }
+        scale:   _shown ? 1.0 : 0.8
 
+        Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
+        Behavior on scale   { NumberAnimation { duration: 600; easing.type: Easing.OutBack  } }
+
+        // FIX: triggeredOnStart: true — ilk tick'i beklemeden saat hemen gösterilir
         Timer {
             interval: 1000
             running: true
             repeat: true
+            triggeredOnStart: true
             onTriggered: bigClock.text = Qt.formatTime(new Date(), "HH:mm")
         }
     }
@@ -149,26 +166,22 @@ PanelWindow {
     MouseArea {
         anchors.fill: parent
         z: 0
-        onClicked: Qt.quit()
+        onClicked: _close()
     }
 
-    // ─── Ana İçerik ──────────────────────────────────────────────────────────
+    // ─── Ana içerik ───────────────────────────────────────────────────────────
     Item {
         id: mainContent
-        anchors.fill: parent
-        anchors.margins: _margin
-        anchors.topMargin: _margin + 160 // Saatin altına gelsin
-        
+        anchors { fill: parent; margins: _margin; topMargin: _margin + 160 }
         opacity: _shown ? 1.0 : 0.0
-        scale: _shown ? 1.0 : 0.98
-        transform: Translate { y: _shown ? 0 : 20 }
-        
+        scale:   _shown ? 1.0 : 0.98
+
+        // FIX: "Behavior on transform" kaldırıldı — list property'e behavior uygulanamaz,
+        //      QML bunu sessizce görmezden gelir. scale + opacity animasyonu yeterli.
         Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 500; easing.type: Easing.OutCubic } }
-        Behavior on transform { NumberAnimation { duration: 500; easing.type: Easing.OutCubic } }
+        Behavior on scale   { NumberAnimation { duration: 500; easing.type: Easing.OutCubic } }
 
-
-        // ── Sidebar ──
+        // ── Sidebar ──────────────────────────────────────────────────────────
         Rectangle {
             id: sideBar
             width: _sideWidth
@@ -181,7 +194,7 @@ PanelWindow {
                 anchors { fill: parent; margins: 24 }
                 spacing: 32
 
-                // User Profile
+                // Kullanıcı profili
                 Row {
                     spacing: 16
                     Rectangle {
@@ -197,31 +210,45 @@ PanelWindow {
                     }
                     Column {
                         anchors.verticalCenter: parent.verticalCenter
-                        Text { 
-                            text: _userFullName !== "" ? _userFullName : (_userName !== "" ? _userName : "Kullanıcı")
-                            color: _clrText; font { pixelSize: 18; weight: Font.Medium } 
+                        Text {
+                            text: _userFullName !== "" ? _userFullName
+                                : (_userName !== "" ? _userName : "Kullanıcı")
+                            color: _clrText
+                            font { pixelSize: 18; weight: Font.Medium }
                         }
-                        Text { 
+                        Text {
                             text: "@" + (_userName !== "" ? _userName : "admin")
-                            color: _clrTextDim; font.pixelSize: 12 
+                            color: _clrTextDim
+                            font.pixelSize: 12
                         }
                     }
                 }
 
-                // Links
+                // Bağlantılar
                 Column {
                     width: parent.width
                     spacing: 8
                     Repeater {
-                        model: ["File Center", "Instagram", "WhatsApp", "Facebook", "Games", "Music & Audio", "Pictures & Visuals", "Desktops"]
+                        model: ["File Center", "Instagram", "WhatsApp", "Facebook",
+                                "Games", "Music & Audio", "Pictures & Visuals", "Desktops"]
                         delegate: Rectangle {
                             width: parent.width; height: 44; radius: 12
                             color: _maSide.containsMouse ? _clrHover : "transparent"
+                            Behavior on color { ColorAnimation { duration: 120 } }
                             Row {
                                 anchors { fill: parent; leftMargin: 12 }
                                 spacing: 12
-                                Rectangle { width: 24; height: 24; radius: 6; color: _clrGlassBorder } // Icon placeholder
-                                Text { text: modelData; color: _clrText; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
+                                Rectangle {
+                                    width: 24; height: 24; radius: 6
+                                    color: _clrGlassBorder
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    text: modelData
+                                    color: _clrText
+                                    font.pixelSize: 14
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
                             }
                             MouseArea { id: _maSide; anchors.fill: parent; hoverEnabled: true }
                         }
@@ -230,51 +257,66 @@ PanelWindow {
             }
         }
 
-        // ── Gri Alan (Cards) ──
+        // ── İçerik ızgarası ──────────────────────────────────────────────────
         GridLayout {
-            anchors { left: sideBar.right; right: parent.right; top: parent.top; bottom: parent.bottom; leftMargin: 32 }
+            anchors {
+                left: sideBar.right; right: parent.right
+                top: parent.top; bottom: parent.bottom
+                leftMargin: 32
+            }
             columns: 2
-            columnSpacing: 24; rowSpacing: 24
+            columnSpacing: 24
+            rowSpacing: 24
 
-            // Left Column
+            // Sol sütun
             ColumnLayout {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 spacing: 24
 
-                // Microsoft Collection
                 Card {
                     title: "Microsoft Collection"
                     Layout.fillWidth: true; Layout.preferredHeight: 220
                     Flow {
-                        anchors.fill: parent
-                        anchors.margins: 24
-                        anchors.topMargin: 54
+                        anchors { fill: parent; margins: 24; topMargin: 54 }
                         spacing: 20
                         Repeater {
                             model: 6
-                            delegate: Rectangle { width: 54; height: 54; radius: 12; color: _clrGlassBorder }
+                            delegate: Rectangle {
+                                width: 54; height: 54; radius: 12
+                                color: _clrGlassBorder
+                            }
                         }
                     }
                 }
 
-                // Uygulamalar (Applications)
                 Card {
                     title: "Uygulamalar"
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    
+
                     ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 24
-                        anchors.topMargin: 54
+                        anchors { fill: parent; margins: 24; topMargin: 54 }
                         spacing: 16
 
-                        // Search Bar inside card
+                        // Arama çubuğu
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 48
-                            radius: 12
+                            height: 48; radius: 12
                             color: Qt.rgba(1, 1, 1, 0.05)
-                            border { width: 1; color: searchInput.activeFocus ? _clrAccent : _clrGlassBorder }
+                            border {
+                                width: 1
+                                color: searchInput.activeFocus ? _clrAccent : _clrGlassBorder
+                            }
+
+                            Text {
+                                text: "Uygulama ara..."
+                                color: _clrTextDim
+                                font.pixelSize: 16
+                                visible: searchInput.text === "" && !searchInput.activeFocus
+                                anchors {
+                                    verticalCenter: parent.verticalCenter
+                                    left: parent.left; leftMargin: 16
+                                }
+                            }
 
                             TextInput {
                                 id: searchInput
@@ -284,33 +326,22 @@ PanelWindow {
                                 color: "white"
                                 onTextChanged: root.searchText = text
 
+                                // FIX: children DOM traversal yerine Repeater.itemAt() kullanılıyor
                                 Keys.onReturnPressed: {
-                                    for (var i = 0; i < appFlow.children.length; i++) {
-                                        var it = appFlow.children[i];
-                                        if (it && it.visible) {
-                                            // The first child of the delegate Item is the AppCell
-                                            var cell = it.children[0];
-                                            if (cell && cell.launch) {
-                                                cell.launch();
-                                                break;
-                                            }
+                                    for (var i = 0; i < appRepeater.count; i++) {
+                                        var cell = appRepeater.itemAt(i)
+                                        if (cell && cell.visible) {
+                                            if (cell.entry) cell.entry.execute()
+                                            _close()
+                                            break
                                         }
                                     }
-                                }
-                                
-                                Text {
-                                    text: "Uygulama ara..."
-                                    color: _clrTextDim
-                                    font.pixelSize: 16
-                                    visible: !parent.text && !parent.activeFocus
-                                    anchors.verticalCenter: parent.verticalCenter
                                 }
                             }
                         }
 
                         Flickable {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
+                            Layout.fillWidth: true; Layout.fillHeight: true
                             contentHeight: appFlow.height
                             clip: true
 
@@ -319,24 +350,18 @@ PanelWindow {
                                 width: parent.width
                                 spacing: 12
 
+                                // FIX: Gereksiz wrapper Item kaldırıldı — AppCell doğrudan delegate
                                 Repeater {
+                                    id: appRepeater
                                     model: DesktopEntries.applications
-                                    delegate: Item {
+                                    delegate: AppCell {
                                         width: 80; height: 100
-                                        visible: {
-                                            var q = root.searchText.toLowerCase().trim()
-                                            return q === "" || (modelData && modelData.name &&
-                                                modelData.name.toLowerCase().indexOf(q) >= 0)
-                                        }
-
-                                        AppCell {
-                                            anchors.fill: parent
-                                            entry: modelData
-                                            onLaunch: Qt.quit()
-                                            
-                                            // Scale down for the card view
-                                            property real scaleFactor: 0.8
-                                        }
+                                        entry: modelData
+                                        // FIX: _searchLower cached property kullanılıyor
+                                        visible: root._searchLower === "" ||
+                                                 (modelData && modelData.name &&
+                                                  modelData.name.toLowerCase().indexOf(root._searchLower) >= 0)
+                                        onLaunch: _close()
                                     }
                                 }
                             }
@@ -345,31 +370,29 @@ PanelWindow {
                 }
             }
 
-            // Right Column
+            // Sağ sütun
             ColumnLayout {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 spacing: 24
 
-                // Recently Used
                 Card {
-                    title: "Recently Used"
+                    title: "Son Kullanılanlar"
                     Layout.fillWidth: true; Layout.preferredHeight: 340
                     Column {
-                        anchors.fill: parent
-                        anchors.margins: 24
-                        anchors.topMargin: 54
+                        anchors { fill: parent; margins: 24; topMargin: 54 }
                         spacing: 16
                         Repeater {
                             model: [
-                                { t: "Notifications", s: "Notification Alerts", i: "bell" },
-                                { t: "System Setup", s: "Installed UI Elements", i: "settings" },
-                                { t: "Accessibility", s: "Accessibility settings", i: "user" }
+                                { t: "Notifications", s: "Notification Alerts",   i: "bell"     },
+                                { t: "System Setup",  s: "Installed UI Elements", i: "settings" },
+                                { t: "Accessibility", s: "Accessibility settings", i: "user"    }
                             ]
                             delegate: Row {
                                 spacing: 16
                                 Rectangle { width: 48; height: 48; radius: 12; color: _clrGlassBorder }
                                 Column {
-                                    Text { text: modelData.t; color: _clrText; font.pixelSize: 15 }
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    Text { text: modelData.t; color: _clrText;    font.pixelSize: 15 }
                                     Text { text: modelData.s; color: _clrTextDim; font.pixelSize: 11 }
                                 }
                             }
@@ -377,119 +400,37 @@ PanelWindow {
                     }
                 }
 
-                // Preview Card
                 Rectangle {
                     Layout.fillWidth: true; Layout.fillHeight: true
                     radius: _cardRadius
                     color: _clrGlassBg
                     border { width: 1; color: _clrGlassBorder }
                     clip: true
-
-
                 }
             }
         }
     }
 
-
-
-    // ── Power Button and Menu ───────────────────────────────────────────────
-    Item {
+    // ── Güç butonu ve menü ────────────────────────────────────────────────────
+    // FIX: Circular width binding kaldırıldı — Row layout kendi genişliğini hesaplar
+    Row {
+        id: powerRow
         anchors { verticalCenter: bigClock.verticalCenter; right: parent.right; rightMargin: _margin }
-        width: powerMenuContent.width + 54 + 16
-        height: 54
-
-        Row {
-            id: powerMenuContent
-            anchors { right: mainPowerBtn.left; rightMargin: 16; verticalCenter: parent.verticalCenter }
-            spacing: 12
-            opacity: _powerMenuOpen ? 1 : 0
-            visible: opacity > 0
-
-            Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
-
-            Repeater {
-                model: pwrModel
-                delegate: Rectangle {
-                    height: 54; radius: 27
-                    width: _powerMenuOpen ? 200 : 54
-                    color: _maPwr.containsMouse ? Qt.rgba(1, 1, 1, 0.2) : _clrGlassBg
-                    border { width: 1; color: _clrGlassBorder }
-                    clip: true
-
-                    Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
-                    
-                    // Animation
-                    transform: Translate {
-                        x: _powerMenuOpen ? 0 : 20
-                        Behavior on x { NumberAnimation { duration: 300 + (index * 50); easing.type: Easing.OutBack } }
-                    }
-                    opacity: _powerMenuOpen ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: 300 + (index * 50) } }
-
-                    Row {
-                        anchors.centerIn: parent
-                        height: parent.height
-                        spacing: 8
-                        
-                        Item {
-                            width: 26; height: 26
-                            anchors.verticalCenter: parent.verticalCenter
-                            
-                            Image {
-                                id: pwrSubIcon
-                                anchors.fill: parent
-                                sourceSize: Qt.size(width, height)
-                                visible: false
-                                source: {
-                                    if (model.key === "reboot") return "icons/reboot.svg"
-                                    if (model.key === "suspend") return "icons/suspend.svg"
-                                    if (model.key === "poweroff") return "icons/power.svg"
-                                    if (model.key === "logout") return "icons/logout.svg"
-                                    return ""
-                                }
-                            }
-
-                            MultiEffect {
-                                source: pwrSubIcon
-                                anchors.fill: parent
-                                colorization: 1.0
-                                colorizationColor: _maPwr.containsMouse ? model.accent : "#ffffff"
-                            }
-                        }
-
-                        Text {
-                            text: model.label
-                            color: "white"
-                            font { pixelSize: 13; weight: Font.Medium }
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: _powerMenuOpen || width > 0
-                            opacity: _powerMenuOpen ? 1 : 0
-                            Behavior on opacity { NumberAnimation { duration: 300 } }
-                        }
-                    }
-
-                    MouseArea {
-                        id: _maPwr
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: root._runPower(model.key)
-                    }
-                }
-            }
-        }
+        spacing: 16
+        layoutDirection: Qt.RightToLeft
 
         Rectangle {
             id: mainPowerBtn
             width: 54; height: 54; radius: 27
-            anchors.right: parent.right
             color: _powerMenuOpen ? _clrAccent : _clrGlassBg
             border { width: 1; color: _clrGlassBorder }
-            
+
+            Behavior on color { ColorAnimation { duration: 200 } }
+
             Item {
                 anchors.centerIn: parent
                 width: 26; height: 26
-                
+
                 Image {
                     id: mainIconImg
                     anchors.fill: parent
@@ -505,36 +446,101 @@ PanelWindow {
                     colorizationColor: _powerMenuOpen ? "#000000" : "#ffffff"
                 }
             }
-            
+
             MouseArea {
                 anchors.fill: parent
                 onClicked: _powerMenuOpen = !_powerMenuOpen
             }
         }
+
+        Row {
+            id: powerMenuContent
+            layoutDirection: Qt.RightToLeft
+            spacing: 12
+            opacity: _powerMenuOpen ? 1 : 0
+            visible: opacity > 0
+
+            Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+
+            Repeater {
+                model: pwrModel
+                delegate: Rectangle {
+                    height: 54; width: 200; radius: 27
+                    color: _maPwr.containsMouse ? Qt.rgba(1, 1, 1, 0.2) : _clrGlassBg
+                    border { width: 1; color: _clrGlassBorder }
+                    clip: true
+
+                    opacity: _powerMenuOpen ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 300 + (index * 50) } }
+
+                    // Slide-in animasyonu — Translate.x üzerinde Behavior geçerlidir
+                    transform: Translate {
+                        x: _powerMenuOpen ? 0 : 20
+                        Behavior on x { NumberAnimation { duration: 300 + (index * 50); easing.type: Easing.OutBack } }
+                    }
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 8
+
+                        Item {
+                            width: 26; height: 26
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Image {
+                                id: pwrSubIcon
+                                anchors.fill: parent
+                                sourceSize: Qt.size(width, height)
+                                visible: false
+                                // FIX: icon adı model'den alınıyor — her key için ayrı if-else yok
+                                source: "icons/" + model.icon + ".svg"
+                            }
+
+                            MultiEffect {
+                                source: pwrSubIcon
+                                anchors.fill: parent
+                                colorization: 1.0
+                                colorizationColor: _maPwr.containsMouse ? model.accent : "#ffffff"
+                            }
+                        }
+
+                        Text {
+                            text: model.label
+                            color: "white"
+                            font { pixelSize: 13; weight: Font.Medium }
+                            anchors.verticalCenter: parent.verticalCenter
+                            // FIX: "|| width > 0" kaldırıldı — width > 0 her zaman true'dur,
+                            //      görünürlük parent'ın opacity animasyonuyla yönetiliyor
+                        }
+                    }
+
+                    MouseArea {
+                        id: _maPwr
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: root._runPower(model.key)
+                    }
+                }
+            }
+        }
     }
 
-    // Component: Card helper
+    // ─── Card bileşeni ────────────────────────────────────────────────────────
     component Card: Rectangle {
         property string title: ""
         radius: _cardRadius
         color: _clrGlassBg
         border { width: 1; color: _clrGlassBorder }
-        
+
         Text {
-            id: cardTitle
             anchors { left: parent.left; top: parent.top; margins: 24 }
-            text: title
+            text: parent.title
             color: _clrTextDim
             font { pixelSize: 13; weight: Font.Medium }
         }
     }
 
-
-
-
-    // ─── Bileşenler ─────────────────────────────────────────────────────────
-
-    // Component: Uygulama hücresi — ikon üstte, isim altta
+    // ─── AppCell bileşeni — ikon üstte, isim altta ────────────────────────────
     component AppCell: Rectangle {
         id: _ac
         property var entry: null
@@ -548,7 +554,6 @@ PanelWindow {
             anchors.centerIn: parent
             spacing: 8
 
-            // İkon
             Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: 48; height: 48
@@ -569,7 +574,9 @@ PanelWindow {
                     visible: _ico.status !== Image.Ready
                     Text {
                         anchors.centerIn: parent
-                        text: _ac.entry ? _ac.entry.name.charAt(0).toUpperCase() : "?"
+                        // FIX: name boş string ise charAt(0) undefined döner — null guard eklendi
+                        text: (_ac.entry && _ac.entry.name && _ac.entry.name.length > 0)
+                              ? _ac.entry.name.charAt(0).toUpperCase() : "?"
                         font { pixelSize: 18; weight: Font.Bold }
                         color: "white"
                     }
@@ -577,15 +584,14 @@ PanelWindow {
             }
 
             Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: parent.parent.width - 8
-                text: _ac.entry ? _ac.entry.name : ""
+                // FIX: parent.parent.width yerine _ac.width — zincir referans kırıldı
+                width: _ac.width - 8
+                text: _ac.entry ? (_ac.entry.name || "") : ""
                 font.pixelSize: 11
                 color: "white"
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 maximumLineCount: 1
-                wrapMode: Text.WordWrap
             }
         }
 
@@ -594,7 +600,12 @@ PanelWindow {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: { if (_ac.entry) { _ac.entry.execute(); _ac.launch() } }
+            onClicked: {
+                if (_ac.entry) {
+                    _ac.entry.execute()
+                    _ac.launch()
+                }
+            }
         }
     }
 }
