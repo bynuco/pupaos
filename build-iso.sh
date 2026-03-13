@@ -135,6 +135,7 @@ touch /etc/sv/flatpak-setup/down
 rm -f /etc/runit/runsvdir/default/flatpak-setup
 exit 0
 FLATPAK_RUN
+mkdir -p "$INCLUDEDIR/etc/runit/runsvdir/default"
 ln -sf ../../sv/flatpak-setup "$INCLUDEDIR/etc/runit/runsvdir/default/flatpak-setup"
 
 # Login sonrası wayfire otomatik başlatma (startos.sh kullanarak)
