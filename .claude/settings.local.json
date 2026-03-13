@@ -11,7 +11,14 @@
       "Bash(pactl get-sink-volume:*)",
       "Bash(pactl get-sink-mute:*)",
       "Bash(wpctl status:*)",
-      "Bash(pkill -HUP wayfire)"
+      "Bash(pkill -HUP wayfire)",
+      "WebFetch(domain:voidforums.com)",
+      "WebFetch(domain:wiki.archlinux.org)",
+      "WebFetch(domain:wiki.hypr.land)",
+      "WebFetch(domain:kextcache.com)",
+      "WebFetch(domain:wiki.hyprland.org)",
+      "WebFetch(domain:wiki.voidlinux.org)",
+      "WebFetch(domain:forums.freebsd.org)"
     ]
   }
 }

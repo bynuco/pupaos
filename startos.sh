@@ -25,6 +25,13 @@ if is_vm; then
     export WLR_RENDERER=pixman
     # VM'lerde donanım imleci sorunlarını (imleç kaybolması/bozulması) önlemek için:
     export WLR_NO_HARDWARE_CURSORS=1
+elif lspci 2>/dev/null | grep -qi "NVIDIA"; then
+    # NVIDIA: wlroots GBM backend + donanım imleç sorunu + VA-API
+    export GBM_BACKEND=nvidia-drm
+    export __GLX_VENDOR_LIBRARY_NAME=nvidia
+    export WLR_NO_HARDWARE_CURSORS=1
+    export LIBVA_DRIVER_NAME=nvidia
+    export NVD_BACKEND=direct
 fi
 
 # 4. Uygulama Standartları (launcher ve DesktopEntries Flatpak .desktop'ları görsün)
